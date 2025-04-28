@@ -2,7 +2,7 @@
 Heart Failure Monitoring Server Extension
 
 This module extends the replicated_server.py script to add heart failure monitoring functionality.
-It adds new RPCs for handling risk reports and sets up the necessary database tables.
+It includes fixes for JSON serialization and recursive cursor issues.
 """
 
 import datetime
@@ -10,10 +10,8 @@ import json
 import logging
 import threading
 import time
+import sqlite3
 import chat_pb2
-
-# This will be imported into replicated_server.py
-# The ReplicatedChatService class will be extended with these methods
 
 def initialize_hf_db(self):
     """Initialize the database tables for heart failure monitoring."""
@@ -42,6 +40,11 @@ def initialize_hf_db(self):
 def alert_monitor_loop(self):
     """Monitor for new high-risk reports and trigger alerts."""
     last_id = 0
+    
+    # Create a separate database connection for this thread to avoid cursor conflicts
+    monitor_conn = sqlite3.connect(self.db_file, check_same_thread=False)
+    monitor_cursor = monitor_conn.cursor()
+    
     while True:
         if not self.is_leader:
             # Only the leader should monitor for alerts
@@ -50,12 +53,12 @@ def alert_monitor_loop(self):
         
         try:
             # Get all new RED reports
-            self.cursor.execute(
+            monitor_cursor.execute(
                 "SELECT id, patient_id, timestamp, probability, tier FROM risk_reports "
                 "WHERE id > ? AND tier = 'RED' AND alert_sent = 0",
                 (last_id,)
             )
-            new_reports = self.cursor.fetchall()
+            new_reports = monitor_cursor.fetchall()
             
             for report in new_reports:
                 report_id, patient_id, timestamp, probability, tier = report
@@ -73,9 +76,9 @@ def alert_monitor_loop(self):
                 # Here you would add code to send external notifications
                 # e.g., SMS, email, webhook to monitoring dashboard, etc.
                 
-                # Mark as alerted
-                self.cursor.execute("UPDATE risk_reports SET alert_sent = 1 WHERE id = ?", (report_id,))
-                self.conn.commit()
+                # Mark as alerted - use a separate cursor
+                monitor_cursor.execute("UPDATE risk_reports SET alert_sent = 1 WHERE id = ?", (report_id,))
+                monitor_conn.commit()
                 
                 # Replicate the alert_sent update to followers
                 self.replicate_to_followers("update_alert_sent", {"report_id": report_id})
@@ -97,7 +100,10 @@ def SendRiskReport(self, request, context):
     
     patient_id = request.patient_id
     timestamp = request.timestamp
-    inputs = request.inputs
+    
+    # Convert repeated field to a regular Python list for proper JSON serialization
+    inputs = list(request.inputs)
+    
     probability = request.probability
     tier = request.tier
     
@@ -129,11 +135,11 @@ def SendRiskReport(self, request, context):
         report_id = self.cursor.lastrowid
         self.conn.commit()
         
-        # Replicate to followers
+        # Replicate to followers - convert repeated field to list for JSON serialization
         self.replicate_to_followers("risk_report", {
             "patient_id": patient_id,
             "timestamp": timestamp,
-            "inputs": inputs,
+            "inputs": inputs,  # Now a regular Python list
             "probability": probability,
             "tier": tier
         })
@@ -206,6 +212,7 @@ def ListRiskReports(self, request, context):
 def handle_risk_report_replication(self, data):
     """Handle replication of a risk report operation."""
     try:
+        # The data["inputs"] is now a regular Python list
         self.cursor.execute(
             "INSERT INTO risk_reports (patient_id, timestamp, age, serum_sodium, serum_creatinine, ejection_fraction, day, probability, tier, alert_sent) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

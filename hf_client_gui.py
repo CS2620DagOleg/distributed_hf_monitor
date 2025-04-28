@@ -31,7 +31,7 @@ FALLBACK_TIMEOUT = client_config.get("fallback_timeout", 1)
 OVERALL_LEADER_LOOKUP_TIMEOUT = client_config.get("overall_leader_lookup_timeout", 5)
 RETRY_DELAY = client_config.get("retry_delay", 1)
 CLIENT_HEARTBEAT_INTERVAL = client_config.get("client_heartbeat_interval", 5)
-MONITORING_INTERVAL = client_config.get("monitoring_interval", 15)  # seconds between readings (shortened for demo)
+MONITORING_INTERVAL = client_config.get("monitoring_interval", 15)  # seconds between readings
 
 # Risk thresholds
 GREEN_THRESHOLD = client_config.get("green_threshold", 0.30)
@@ -337,7 +337,9 @@ class HeartFailureMonitoringGUI(tk.Tk):
         # Day count (time since monitoring began)
         day = int(time.time() / 86400) % 365
         
-        return [age, serum_sodium, serum_creatinine, ejection_fraction, day]
+        # Convert to standard Python types to ensure JSON serialization works
+        return [float(age), float(serum_sodium), float(serum_creatinine), 
+                float(ejection_fraction), float(day)]
     
     def run_model_inference(self, vitals):
         """Run the heart failure prediction model on the given vitals."""
@@ -404,7 +406,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         self.risk_indicator.create_oval(5, 5, 35, 35, fill=color, outline="")
     
     def handle_risk_report(self, vitals, probability, tier):
-        """Handle a risk report based on its tier."""
+        """Handle a risk report based on its tier with proper type handling."""
         if tier == "GREEN":
             # Store locally only, no network traffic
             self.log(f"GREEN risk report: p={probability:.2f}. Storing locally only.")
@@ -413,12 +415,15 @@ class HeartFailureMonitoringGUI(tk.Tk):
         # For AMBER and RED, send to server
         timestamp = int(time.time())
         
-        # Prepare the risk report
+        # Convert numpy arrays or other non-serializable types to simple Python lists
+        vitals_list = [float(v) for v in vitals]
+        
+        # Prepare the risk report with basic Python types
         report = {
             "patient_id": self.patient_id,
             "timestamp": timestamp,
-            "inputs": vitals,
-            "probability": probability,
+            "inputs": vitals_list,  # List of floats
+            "probability": float(probability),
             "tier": tier
         }
         
@@ -442,13 +447,16 @@ class HeartFailureMonitoringGUI(tk.Tk):
         self.send_risk_report(report)
     
     def send_risk_report(self, report):
-        """Send a risk report to the leader server."""
+        """Send a risk report to the leader server with proper handling of data types."""
         # Convert the report to a RiskReportRequest
+        # Make sure inputs is a proper list, not a numpy array or other non-serializable type
+        inputs = [float(x) for x in report["inputs"]]
+        
         request = chat_pb2.RiskReportRequest(
             patient_id=report["patient_id"],
-            timestamp=report["timestamp"],
-            inputs=report["inputs"],
-            probability=report["probability"],
+            timestamp=int(report["timestamp"]),
+            inputs=inputs,  # Now a proper list of floats
+            probability=float(report["probability"]),
             tier=report["tier"]
         )
         
