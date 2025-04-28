@@ -1,17 +1,17 @@
 {
-    "client_connect_host": "127.0.0.1",
-    "client_connect_port": 50051,
-    "replica_addresses": [
-      "127.0.0.1:50051",
-      "127.0.0.1:50052",
-      "127.0.0.1:50053"
-    ],
-    "rpc_timeout": 10,
-    "fallback_timeout": 1,
-    "overall_leader_lookup_timeout": 6,
-    "retry_delay": 1,
-    "client_heartbeat_interval": 5,
-    "monitoring_interval": 30,
-    "green_threshold": 0.30,
-    "amber_threshold": 0.60
-  }
+  "client_connect_host": "127.0.0.1",
+  "client_connect_port": 50061,
+  "replica_addresses": [
+    "127.0.0.1:50061",
+    "127.0.0.1:50062",
+    "127.0.0.1:50063"
+  ],
+  "rpc_timeout": 3,
+  "fallback_timeout": 1,
+  "overall_leader_lookup_timeout": 3,
+  "retry_delay": 1,
+  "client_heartbeat_interval": 2,
+  "monitoring_interval": 5,
+  "green_threshold": 0.3,
+  "amber_threshold": 0.6
+}

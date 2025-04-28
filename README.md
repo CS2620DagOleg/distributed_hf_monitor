@@ -16,13 +16,25 @@ A distributed, fault-tolerant system for real-time monitoring of heart failure r
    - [Starting Servers](#starting-servers)
    - [Starting Clients](#starting-clients)
    - [Testing Failover](#testing-failover)
-7. [Technical Details](#technical-details)
+7. [Data Storage and Management](#data-storage-and-management)
+   - [Database Schema](#database-schema)
+   - [Viewing Stored Reports](#viewing-stored-reports)
+   - [Data Replication](#data-replication) 
+8. [Technical Details](#technical-details)
    - [Data Flow](#data-flow)
    - [Risk Classification](#risk-classification)
    - [Server Replication](#server-replication)
    - [Fault Tolerance](#fault-tolerance)
-8. [GUI Interface](#gui-interface)
-9. [Troubleshooting](#troubleshooting)
+9. [GUI Interface](#gui-interface)
+10. [Distributed Deployment](#distributed-deployment)
+11. [Testing Framework](#testing-framework)
+    - [Unit Tests](#unit-tests)
+    - [Integration Tests](#integration-tests)
+    - [Performance Tests](#performance-tests)
+    - [Running Tests](#running-tests)
+12. [Troubleshooting](#troubleshooting)
+    - [Common Errors](#common-errors)
+    - [Debug Tips](#debug-tips)
 
 ## Overview
 
@@ -167,13 +179,13 @@ You need to start at least one server, but for fault tolerance, it's recommended
 
 1. Start the leader server (Server 1):
    ```bash
-   python hf_replicated_server.py --server_id 1 --server_host 127.0.0.1 --server_port 50051 --initial_leader true
+   python hf_replicated_server.py --server_id=1 --server_host=127.0.0.1 --server_port=50051 --initial_leader=true
    ```
 
 2. Start follower servers:
    ```bash
-   python hf_replicated_server.py --server_id 2 --server_host 127.0.0.1 --server_port 50052 --initial_leader false
-   python hf_replicated_server.py --server_id 3 --server_host 127.0.0.1 --server_port 50053 --initial_leader false
+   python hf_replicated_server.py --server_id=2 --server_host=127.0.0.1 --server_port=50052 --initial_leader=false
+   python hf_replicated_server.py --server_id=3 --server_host=127.0.0.1 --server_port=50053 --initial_leader=false
    ```
 
 ### Starting Clients
@@ -200,6 +212,77 @@ To test the fault tolerance of the system:
 3. Kill the leader server (Server 1) by pressing Ctrl+C in its terminal
 4. Observe the logs in the remaining servers as they detect the leader failure and elect a new leader
 5. Watch the client reconnect to the new leader and continue sending reports
+
+## Data Storage and Management
+
+### Database Schema
+
+The system stores risk reports in SQLite databases on each server. The database schema includes:
+
+```sql
+CREATE TABLE IF NOT EXISTS risk_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    age REAL,
+    serum_sodium REAL,
+    serum_creatinine REAL,
+    ejection_fraction REAL,
+    day INTEGER,
+    probability REAL,
+    tier TEXT,
+    alert_sent INTEGER DEFAULT 0
+)
+```
+
+### Data Storage Locations
+
+Risk reports are stored in different locations based on their risk level:
+
+1. **GREEN Reports** (p < 0.30): 
+   - Stored locally in client memory only
+   - Not sent to servers
+   - Not persisted after client shutdown
+
+2. **AMBER & RED Reports** (p ≥ 0.30):
+   - Sent to the leader server
+   - Stored in SQLite databases on all servers
+   - Database filenames follow the pattern: `chat_<server_id>.db` (e.g., `chat_1.db`)
+
+### Viewing Stored Reports
+
+You can view the stored reports using:
+
+1. **SQLite Command Line**:
+   ```bash
+   sqlite3 chat_1.db
+   > SELECT * FROM risk_reports;
+   ```
+
+2. **Custom Python Script**:
+   ```python
+   import sqlite3
+   
+   conn = sqlite3.connect("chat_1.db")
+   cursor = conn.cursor()
+   cursor.execute("SELECT * FROM risk_reports")
+   for row in cursor.fetchall():
+       print(row)
+   ```
+
+3. **Using list_db.py** (if available from your original repository):
+   ```bash
+   python list_db.py chat_1.db
+   ```
+
+### Data Replication
+
+When the leader server receives a risk report:
+
+1. It writes the report to its local database
+2. It forwards the report to all follower servers
+3. Followers store the report in their local databases
+4. This ensures all servers have identical copies of the data
 
 ## Technical Details
 
@@ -326,34 +409,165 @@ The client GUI provides a comprehensive interface for monitoring patients:
    - Connection status indicator
    - Automatic leader discovery and reconnection
 
+## Distributed Deployment
+
+To deploy the system across multiple machines:
+
+1. **Network Configuration**:
+   - Ensure all machines can communicate with each other
+   - Open required ports on firewalls (default: 50051-50053)
+
+2. **Server Configuration**:
+   - Use `0.0.0.0` as the listening address to accept connections from any interface
+   - Update `replica_addresses` with actual IP addresses
+
+3. **Cross-Machine Command**:
+   ```bash
+   # On Machine 1 (Leader)
+   python hf_replicated_server.py --server_id=1 --server_host=0.0.0.0 --server_port=50051 --initial_leader=true
+
+   # On Machine 2 (Follower)
+   python hf_replicated_server.py --server_id=2 --server_host=0.0.0.0 --server_port=50051 --initial_leader=false
+
+   # On Machine 3 (Follower)
+   python hf_replicated_server.py --server_id=3 --server_host=0.0.0.0 --server_port=50051 --initial_leader=false
+   ```
+
+4. **Client Configuration**:
+   - Update `config_client.json` with the actual IP addresses of all servers
+
+## Testing Framework
+
+The system includes a comprehensive testing framework to ensure reliability, robustness, and fault-tolerance. This framework includes unit tests, integration tests, and performance testing capabilities.
+
+### Unit Tests
+
+Unit tests validate individual components of the system in isolation:
+
+- **Server Components**: Tests core server functionality (startup, shutdown, leader election)
+- **Client Components**: Tests model inference, risk classification, error handling
+- **Data Handling**: Tests serialization, deserialization, and database operations
+- **Error Recovery**: Tests system behavior with invalid inputs and failure conditions
+
+To run unit tests:
+
+```bash
+python test_heart_failure_system.py
+```
+
+### Integration Tests
+
+Integration tests verify the correct operation of the complete system:
+
+- **Normal Operation**: Tests the system under normal conditions
+- **Leader Failure**: Tests automatic failover when the leader crashes
+- **Leader Recovery**: Tests leader rejoining the cluster after a crash
+- **Follower Failure**: Tests continued operation when followers crash
+- **Multiple Failures**: Tests robustness with multiple component failures
+- **Dynamic Membership**: Tests servers joining and leaving the cluster
+- **High Load**: Tests system under high request volume
+
+The integration tests use realistic scenarios and inject faults to validate fault tolerance:
+
+```bash
+python integration_test_scenarios.py
+```
+
+You can run specific scenarios:
+
+```bash
+python integration_test_scenarios.py --scenario "Leader Failure"
+```
+
+Or repeat tests multiple times:
+
+```bash
+python integration_test_scenarios.py --repeat 5
+```
+
+### Performance Tests
+
+The system includes load testing capabilities to validate performance under stress:
+
+- **Concurrent Clients**: Tests with many simultaneously connected clients
+- **High Frequency Reports**: Tests rapid report generation and processing
+- **Long-Running Stability**: Tests system stability over extended periods
+
+These tests help identify bottlenecks and ensure the system can handle real-world usage patterns.
+
+### Headless Client
+
+For automated testing, a headless (non-GUI) client is provided:
+
+```bash
+python headless_client.py --patient_id=TEST-001 --auto_start --duration=60
+```
+
+This client can be used to:
+- Generate synthetic risk reports automatically
+- Test client-server communication
+- Validate failover behavior programmatically
+- Support integration and performance testing
+
+### Running Tests
+
+To run the complete test suite:
+
+1. Make sure you have compiled the protocol buffer definitions
+2. Ensure the model and scaler files exist (`heart_failure_model.h5` and `hf_scaler.gz`)
+3. Create an empty `test_outputs` directory for test artifacts:
+   ```bash
+   mkdir -p test_outputs
+   ```
+4. Run the tests:
+   ```bash
+   # Run unit tests
+   python test_heart_failure_system.py
+   
+   # Run integration tests
+   python integration_test_scenarios.py
+   ```
+
+Test results will be displayed in the console, and detailed logs are saved in the `test_outputs` directory.
+
 ## Troubleshooting
 
-### Common Issues
+### Common Errors
 
-1. **Module Not Found Errors**:
-   - Make sure you've compiled the protocol buffer definitions
-   - Verify all required packages are installed
-   - Check that all Python files are in the same directory
+1. **JSON Serialization Error**: 
+   - Error: `Object of type RepeatedScalarContainer is not JSON serializable`
+   - Fix: Make sure all data types are basic Python types (not Protocol Buffer or NumPy types)
 
-2. **Connection Errors**:
-   - Ensure the server addresses in configuration files are correct
-   - Verify the servers are running and accessible
-   - Check for firewall or network issues
+2. **SQLite Recursive Cursor Error**:
+   - Error: `Recursive use of cursors not allowed`
+   - Fix: Use separate database connections for different threads
 
-3. **Model Loading Errors**:
-   - Ensure `heart_failure_model.h5` and `hf_scaler.gz` exist
-   - If missing, run `train_hf_model.py` to generate them
-   - Verify TensorFlow and joblib are installed correctly
+3. **Command Line Argument Format**:
+   - Correct format: `--server_id=1 --server_host=127.0.0.1 --server_port=50051`
+   - Common mistake: Missing equals sign (`--server_id 1`)
 
-4. **Database Errors**:
-   - Check if the SQLite database file is accessible and writable
-   - Ensure the server has permission to write to the file
-   - Try removing the database file and letting the server recreate it
+4. **Module Not Found Errors**:
+   - Error: `ModuleNotFoundError: No module named 'chat_pb2'`
+   - Fix: Make sure you've compiled the proto file with `protoc`
 
-### Logs and Debugging
+### Debug Tips
 
-- Server logs are printed to the console
-- Client logs are displayed in the GUI's activity log
-- For more detailed logging, you can modify the logging level in the code
+1. **Check Server Logs**: Look for error messages or warnings in the server console
 
-If you encounter issues not covered here, please check the server and client logs for error messages, which often provide more specific information about the problem.
+2. **Verify Database Creation**: Check if SQLite database files are being created properly
+
+3. **Test Client-Server Connection**: Use a simple tool like `telnet` to verify connectivity
+
+4. **Monitor Report Queue**: If reports are getting stuck in the queue, check for serialization or connection issues
+
+5. **Inspect Database Content**: Use SQLite tools to inspect the database contents:
+   ```bash
+   sqlite3 chat_1.db "SELECT * FROM risk_reports ORDER BY timestamp DESC LIMIT 10;"
+   ```
+
+6. **Clear Database for Fresh Start**: If needed, remove the database files and let the system recreate them
+   ```bash
+   rm chat_*.db
+   ```
+
+7. **Test Results Analysis**: If tests are failing, check the test logs in `test_outputs` directory for specific errors

@@ -1,10 +1,14 @@
 {
-    "server_id": 1,
-    "server_host": "127.0.0.1",
-    "server_port": 50051,
-    "replica_addresses": ["127.0.0.1:50051", "127.0.0.1:50052", "127.0.0.1:50053"],
-    "db_file": "chat.db",
-    "heartbeat_interval": 3,
-    "lease_timeout": 10,
-    "initial_leader": true
+  "server_id": 1,
+  "server_host": "127.0.0.1",
+  "server_port": 50061,
+  "replica_addresses": [
+    "127.0.0.1:50061",
+    "127.0.0.1:50062",
+    "127.0.0.1:50063"
+  ],
+  "db_file": "test_outputs/test_chat_1.db",
+  "heartbeat_interval": 1,
+  "lease_timeout": 3,
+  "initial_leader": true
 }
