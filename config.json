@@ -1,11 +1,11 @@
 {
   "server_id": 1,
-  "server_host": "127.0.0.1",
-  "server_port": 50061,
+  "server_host": "192.168.137.75",
+  "server_port": 50051,
   "replica_addresses": [
-    "127.0.0.1:50061",
-    "127.0.0.1:50062",
-    "127.0.0.1:50063"
+    "192.168.137.75:50051",
+    "192.168.137.75:50052",
+    "192.168.137.75:50053"
   ],
   "db_file": "test_outputs/test_chat_1.db",
   "heartbeat_interval": 1,
