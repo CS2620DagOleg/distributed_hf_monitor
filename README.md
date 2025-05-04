@@ -117,6 +117,8 @@ This will generate the following files:
 
 ## Configuration
 
+Except for initial state for the replica addresses, booting addresses are input into the console as arguments. We included config file implementation here for the faster testing and demonstration purposes. 
+
 The system uses the following configuration files:
 
 1. **config.json**: Server configuration
