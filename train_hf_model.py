@@ -5,15 +5,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import joblib
 
-# Load heart failure dataset
+# Load heart failure dataset and showing the dataset
 print("Loading heart failure dataset...")
 data = pd.read_csv('hf.csv')
-
-# Display dataset info
 print(f"Dataset shape: {data.shape}")
 print(data.head())
 
-# Extract the features we'll use for prediction
+# Extracting features to be used for assessing risk, we are only using five features
 # [age, serum_sodium, serum_creatinine, ejection_fraction, time (day)]
 X = data[['age', 'serum_sodium', 'serum_creatinine', 'ejection_fraction', 'time']].values
 y = data['DEATH_EVENT'].values
@@ -21,23 +19,20 @@ y = data['DEATH_EVENT'].values
 # Split data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Scale the features
+# Scaling 
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
-
-# Save the scaler for use in the client
 joblib.dump(scaler, 'hf_scaler.gz')
 print("Scaler saved to hf_scaler.gz")
 
-# Create a simple neural network model
+# Create a NN and compile
 model = tf.keras.Sequential([
     tf.keras.layers.Dense(16, activation='relu', input_shape=(5,)),
     tf.keras.layers.Dense(8, activation='relu'),
     tf.keras.layers.Dense(1, activation='sigmoid')
 ])
 
-# Compile the model
 model.compile(optimizer='adam',
               loss='binary_crossentropy',
               metrics=['accuracy'])
@@ -64,7 +59,6 @@ print("Model saved to heart_failure_model.h5")
 print("\nTesting model with some sample data...")
 
 def predict_risk(age, sodium, creatinine, ef, day):
-    """Predict heart failure risk given vital signs."""
     sample = np.array([[age, sodium, creatinine, ef, day]])
     sample_scaled = scaler.transform(sample)
     probability = model.predict(sample_scaled)[0][0]
@@ -94,4 +88,4 @@ for test_case in test_cases:
     print(f"Age={age}, Na={sodium}, Creat={creatinine}, EF={ef}%, Day={day}")
     print(f"Prediction: {prob:.4f} - {risk}\n")
 
-print("Setup complete. You can now run the heart failure monitoring system.")
+print("Setup complete. The monitoring System can now be run.")
