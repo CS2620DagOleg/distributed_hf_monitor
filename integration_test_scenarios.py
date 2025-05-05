@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""
-Integration Test Scenarios for Heart Failure Monitoring System
 
-This script runs a series of end-to-end tests that simulate real-world
-usage scenarios of the heart failure monitoring system.
-"""
 
 import os
 import sys
@@ -129,13 +124,11 @@ class IntegrationTest:
         }
     
     def log(self, message):
-        """Log a message with timestamp"""
         if self.verbose:
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             print(f"[{timestamp}] {message}")
     
     def create_test_configs(self):
-        """Create test configurations for servers and clients"""
         # Server config template
         server_config_template = {
             "server_id": None,
@@ -188,7 +181,6 @@ class IntegrationTest:
             json.dump(client_config, f, indent=2)
     
     def cleanup_configs(self):
-        """Remove test configuration files"""
         for i in range(1, self.scenario["servers"] + 5):  # +5 for potential dynamic servers
             config_path = f"test_config_server_{i}.json"
             if os.path.exists(config_path):
@@ -198,7 +190,6 @@ class IntegrationTest:
             os.remove("test_config_client.json")
     
     def start_server(self, server_id):
-        """Start a server with the given ID"""
         if server_id in self.server_processes:
             self.log(f"Server {server_id} is already running")
             return
@@ -233,7 +224,6 @@ class IntegrationTest:
         time.sleep(1)  # Give the server time to start
     
     def start_client(self, client_id, headless=True):
-        """Start a client with the given ID"""
         if client_id in self.client_processes:
             self.log(f"Client {client_id} is already running")
             return
@@ -264,7 +254,6 @@ class IntegrationTest:
         self.log(f"Started client {client_id}")
     
     def kill_server(self, server_id):
-        """Kill a server with the given ID"""
         if server_id not in self.server_processes:
             self.log(f"Server {server_id} is not running")
             return
@@ -291,7 +280,6 @@ class IntegrationTest:
         })
     
     def kill_leader(self):
-        """Kill the current leader server"""
         self.log(f"Killing leader (server {self.leader_id})")
         self.kill_server(self.leader_id)
         
@@ -324,10 +312,6 @@ class IntegrationTest:
             })
     
     def query_for_leader(self, server_id):
-        """Query a server to find out who the current leader is"""
-        # This is a placeholder - in a real implementation, you would
-        # use gRPC to call GetLeaderInfo on the server and parse the response
-        # For this test script, we'll simulate this by reading the server log
         log_path = f"{TEST_DB_DIR}/server_{server_id}.log"
         
         if not os.path.exists(log_path):
@@ -337,7 +321,6 @@ class IntegrationTest:
             log_content = f.read()
             
             # Look for leader info in logs
-            # This is an approximation - in production you'd use the gRPC API
             if "I am leader" in log_content:
                 return server_id
             
@@ -358,7 +341,6 @@ class IntegrationTest:
         return None
     
     def add_server(self, server_id):
-        """Add a new server to the cluster"""
         self.log(f"Adding server {server_id} to the cluster")
         
         # Create config for the new server
@@ -400,10 +382,9 @@ class IntegrationTest:
         })
     
     def burst_traffic(self):
-        """Simulate a burst of traffic by making more frequent client reports"""
         self.log("Simulating traffic burst")
         
-        # We'll just add more clients temporarily
+        # Adding more clients temporarily here
         burst_clients = []
         for i in range(10):
             client_id = 100 + i  # Use IDs that won't conflict with existing clients
@@ -424,7 +405,6 @@ class IntegrationTest:
         self.log("Traffic burst complete")
     
     def schedule_event(self, event):
-        """Schedule an event to happen at a specific time"""
         event_time = event["time"]
         action = event["action"]
         
@@ -450,7 +430,6 @@ class IntegrationTest:
         self.event_threads.append(thread)
     
     def analyze_results(self):
-        """Analyze test results by checking logs and databases"""
         try:
             # Count successful reports by looking at databases
             for i in range(1, self.scenario["servers"] + 5):  # +5 for potential dynamic servers
@@ -512,7 +491,6 @@ class IntegrationTest:
             self.results["success"] = False
     
     def run(self):
-        """Run the integration test scenario"""
         self.log(f"Running scenario: {self.scenario['name']}")
         self.log(f"Description: {self.scenario['description']}")
         
@@ -588,7 +566,6 @@ class IntegrationTest:
             self.cleanup_configs()
 
 def run_all_scenarios(args):
-    """Run all test scenarios"""
     results = []
     
     for scenario in scenarios:
