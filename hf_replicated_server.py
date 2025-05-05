@@ -117,7 +117,6 @@ class HeartFailureMonitoringServer(chat_pb2_grpc.ChatServiceServicer):
         self.conn.commit()
 
     def send_heartbeat_loop(self):
-        # Same as original replicated_server.py
         while True:
             for addr in self.replica_addresses:
                 if addr == self.my_address:
@@ -145,7 +144,6 @@ class HeartFailureMonitoringServer(chat_pb2_grpc.ChatServiceServicer):
             time.sleep(1)
 
     def start_election(self):
-        # Same as original replicated_server.py
         backoff = random.uniform(0, 2)
         time.sleep(backoff)
         candidate_id = self.server_id
@@ -178,7 +176,6 @@ class HeartFailureMonitoringServer(chat_pb2_grpc.ChatServiceServicer):
         return chat_pb2.HeartbeatResponse(success=True)
 
     def Election(self, request, context):
-        # Same as original replicated_server.py
         candidate_id = request.candidate_id
         vote = True if self.server_id >= candidate_id else False
         return chat_pb2.ElectionResponse(vote_granted=vote)
@@ -313,7 +310,6 @@ class HeartFailureMonitoringServer(chat_pb2_grpc.ChatServiceServicer):
         return chat_pb2.JoinClusterResponse(success=True, state=json.dumps(state), message="State transfer complete")
 
     def GetLeaderInfo(self, request, context):
-        # Same as original replicated_server.py
         if self.is_leader:
             logging.info(f"[GetLeaderInfo] Leader replica list: {self.replica_addresses}")
             return chat_pb2.GetLeaderInfoResponse(
@@ -333,7 +329,6 @@ class HeartFailureMonitoringServer(chat_pb2_grpc.ChatServiceServicer):
             )
 
     def replicate_to_followers(self, op_type, data):
-        # Same as original replicated_server.py
         req = chat_pb2.ReplicationRequest(operation_type=op_type, data=json.dumps(data))
         for addr in self.replica_addresses:
             if addr == self.my_address:
@@ -345,7 +340,6 @@ class HeartFailureMonitoringServer(chat_pb2_grpc.ChatServiceServicer):
             except Exception as e:
                 logging.error(f"Replication to {addr} failed: {e}")
 
-    # The remaining methods are the same as in the original replicated_server.py
     def CreateAccount(self, request, context):
         if not self.is_leader:
             return chat_pb2.CreateAccountResponse(success=False, message="Not leader. Please contact the leader.")
