@@ -1,9 +1,3 @@
-"""
-Heart Failure Monitoring Server Extension
-
-This module extends the replicated_server.py script to add heart failure monitoring functionality.
-It includes fixes for JSON serialization and recursive cursor issues.
-"""
 
 import datetime
 import json
@@ -14,7 +8,6 @@ import sqlite3
 import chat_pb2
 
 def initialize_hf_db(self):
-    """Initialize the database tables for heart failure monitoring."""
     self.cursor.execute('''
         CREATE TABLE IF NOT EXISTS risk_reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +31,6 @@ def initialize_hf_db(self):
         threading.Thread(target=self.alert_monitor_loop, daemon=True).start()
 
 def alert_monitor_loop(self):
-    """Monitor for new high-risk reports and trigger alerts."""
     last_id = 0
     
     # Create a separate database connection for this thread to avoid cursor conflicts
@@ -73,14 +65,9 @@ def alert_monitor_loop(self):
                 logging.warning(alert_msg)
                 print("\n" + alert_msg + "\n")
                 
-                # Here you would add code to send external notifications
-                # e.g., SMS, email, webhook to monitoring dashboard, etc.
-                
-                # Mark as alerted - use a separate cursor
                 monitor_cursor.execute("UPDATE risk_reports SET alert_sent = 1 WHERE id = ?", (report_id,))
                 monitor_conn.commit()
                 
-                # Replicate the alert_sent update to followers
                 self.replicate_to_followers("update_alert_sent", {"report_id": report_id})
         
         except Exception as e:
@@ -90,7 +77,6 @@ def alert_monitor_loop(self):
         time.sleep(1)
 
 def SendRiskReport(self, request, context):
-    """Handle a risk report from a client."""
     if not self.is_leader:
         return chat_pb2.RiskReportResponse(
             success=False, 
@@ -101,7 +87,7 @@ def SendRiskReport(self, request, context):
     patient_id = request.patient_id
     timestamp = request.timestamp
     
-    # Convert repeated field to a regular Python list for proper JSON serialization
+    # Conversion
     inputs = list(request.inputs)
     
     probability = request.probability
@@ -135,7 +121,7 @@ def SendRiskReport(self, request, context):
         report_id = self.cursor.lastrowid
         self.conn.commit()
         
-        # Replicate to followers - convert repeated field to list for JSON serialization
+        # Replicate to followers
         self.replicate_to_followers("risk_report", {
             "patient_id": patient_id,
             "timestamp": timestamp,
@@ -144,7 +130,7 @@ def SendRiskReport(self, request, context):
             "tier": tier
         })
         
-        # Determine if an alert was sent (always false initially, the alert_monitor_loop will handle it)
+        # Determine if an alert was sent
         alert_sent = False
         
         # Log the received report
@@ -165,7 +151,6 @@ def SendRiskReport(self, request, context):
         )
 
 def ListRiskReports(self, request, context):
-    """List risk reports for a given patient."""
     patient_id = request.patient_id
     count = request.count
     
@@ -208,9 +193,8 @@ def ListRiskReports(self, request, context):
         logging.error(f"Error listing risk reports: {e}")
         return chat_pb2.ListRiskReportsResponse(success=False, reports=[])
 
-# Add a new case to the ReplicateOperation method
+
 def handle_risk_report_replication(self, data):
-    """Handle replication of a risk report operation."""
     try:
         # The data["inputs"] is now a regular Python list
         self.cursor.execute(
@@ -236,7 +220,6 @@ def handle_risk_report_replication(self, data):
         return False
 
 def handle_update_alert_sent_replication(self, data):
-    """Handle replication of an alert_sent update."""
     try:
         report_id = data["report_id"]
         self.cursor.execute("UPDATE risk_reports SET alert_sent = 1 WHERE id = ?", (report_id,))
@@ -246,9 +229,9 @@ def handle_update_alert_sent_replication(self, data):
         logging.error(f"Error replicating alert_sent update: {e}")
         return False
 
-# This function should be called from JoinCluster to include risk_reports in state transfer
+
 def get_risk_reports_for_state_transfer(self):
-    """Get all risk reports for state transfer to a new server."""
+    
     self.cursor.execute(
         "SELECT patient_id, timestamp, age, serum_sodium, serum_creatinine, ejection_fraction, day, probability, tier, alert_sent "
         "FROM risk_reports"
@@ -267,9 +250,7 @@ def get_risk_reports_for_state_transfer(self):
     } for row in self.cursor.fetchall()]
     return risk_reports
 
-# This function should be called when applying state during JoinCluster
 def apply_risk_reports_from_state(self, risk_reports):
-    """Apply risk reports from state transfer."""
     for report in risk_reports:
         self.cursor.execute(
             "INSERT INTO risk_reports (patient_id, timestamp, age, serum_sodium, serum_creatinine, ejection_fraction, day, probability, tier, alert_sent) "
