@@ -20,7 +20,7 @@ service ChatService {
   rpc ReplicateOperation(ReplicationRequest) returns (ReplicationResponse);
   rpc JoinCluster(JoinClusterRequest) returns (JoinClusterResponse);
 
-  // New RPC: returns current leader info and replica addresses.
+  // Returns current leader info and replica addresses.
   rpc GetLeaderInfo(GetLeaderInfoRequest) returns (GetLeaderInfoResponse);
   
   // Heart failure monitoring RPCs
