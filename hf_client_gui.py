@@ -160,7 +160,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         self.log("Enter patient ID and click 'Start Monitoring' to begin")
     
     def log(self, message, level="INFO"):
-        """Add a message to the log with timestamp"""
+       
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         
         # Color coding based on level
@@ -191,7 +191,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         self.log_text.see(tk.END)  # Scroll to the end
         
     def start_monitoring(self):
-        """Start the monitoring process for the entered patient ID"""
+        
         if self.monitoring_active:
             return
         
@@ -217,7 +217,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         threading.Thread(target=self.monitoring_loop, daemon=True).start()
     
     def connect_to_leader(self, address):
-        """Connect to the leader server at the given address."""
+        
         self.leader_address = address
         self.channel = grpc.insecure_channel(address)
         self.stub = chat_pb2_grpc.ChatServiceStub(channel=self.channel)
@@ -226,7 +226,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         print(f"Connected to leader at {address}")
     
     def update_leader(self):
-        """Update the leader address by querying fallback addresses."""
+        
         fallback = client_config.get("replica_addresses", [])
         
         # Update UI to show reconnecting status
@@ -271,7 +271,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         time.sleep(RETRY_DELAY)
     
     def client_heartbeat_check(self):
-        """Periodically check if the leader is still available."""
+        
         while self.running:
             try:
                 resp = self.stub.GetLeaderInfo(chat_pb2.GetLeaderInfoRequest(), timeout=RPC_TIMEOUT)
@@ -294,7 +294,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
             time.sleep(CLIENT_HEARTBEAT_INTERVAL)
     
     def call_rpc_with_retry(self, func, request, retries=3):
-        """Call an RPC with retry logic if the leader becomes unavailable."""
+        
         for i in range(retries):
             try:
                 return func(request, timeout=RPC_TIMEOUT)
@@ -309,7 +309,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         raise Exception("RPC failed after retries.")
     
     def simulate_vitals(self):
-        """Simulate vital signs for the patient. In a real system, this would read from sensors."""
+        
         # Generate plausible values for a heart failure patient
         # [age, serum_sodium, serum_creatinine, ejection_fraction, day]
         
@@ -342,7 +342,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
                 float(ejection_fraction), float(day)]
     
     def run_model_inference(self, vitals):
-        """Run the heart failure prediction model on the given vitals."""
+        
         # Scale the input values using the pre-trained scaler
         try:
             scaled_vitals = self.scaler.transform([vitals])
@@ -354,7 +354,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
             return 0.5  # Return medium risk if inference fails
     
     def classify_risk(self, probability):
-        """Classify the risk based on the predicted probability."""
+        
         if probability < GREEN_THRESHOLD:
             return "GREEN"
         elif probability < AMBER_THRESHOLD:
@@ -363,7 +363,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
             return "RED"
     
     def update_vitals_display(self, vitals):
-        """Update the vital signs display with new values."""
+        
         labels = ["Age", "Serum Sodium", "Serum Creatinine", "Ejection Fraction", "Days Monitored"]
         formats = [".1f", ".1f", ".2f", ".1f", "d"]
         
@@ -383,7 +383,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
             self.vital_values[label].config(text=formatted_value)
     
     def update_risk_display(self, probability, tier):
-        """Update the risk assessment display."""
+        
         # Update probability
         self.probability_label.config(text=f"{probability:.4f}")
         
@@ -406,7 +406,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         self.risk_indicator.create_oval(5, 5, 35, 35, fill=color, outline="")
     
     def handle_risk_report(self, vitals, probability, tier):
-        """Handle a risk report based on its tier with proper type handling."""
+        
         if tier == "GREEN":
             # Store locally only, no network traffic
             self.log(f"GREEN risk report: p={probability:.2f}. Storing locally only.")
@@ -447,9 +447,9 @@ class HeartFailureMonitoringGUI(tk.Tk):
         self.send_risk_report(report)
     
     def send_risk_report(self, report):
-        """Send a risk report to the leader server with proper handling of data types."""
+        
         # Convert the report to a RiskReportRequest
-        # Make sure inputs is a proper list, not a numpy array or other non-serializable type
+       
         inputs = [float(x) for x in report["inputs"]]
         
         request = chat_pb2.RiskReportRequest(
@@ -475,7 +475,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
             self.report_queue.append(report)
     
     def retry_queued_reports(self):
-        """Retry sending any queued risk reports."""
+        
         if not self.report_queue:
             return
         
@@ -491,7 +491,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
         self.report_queue = remaining_queue
     
     def monitoring_loop(self):
-        """Main monitoring loop that periodically checks vitals and sends reports."""
+        
         while self.running and self.monitoring_active:
             # Simulate vitals data collection
             vitals = self.simulate_vitals()
@@ -524,7 +524,7 @@ class HeartFailureMonitoringGUI(tk.Tk):
                 time.sleep(1)
     
     def cleanup(self):
-        """Clean up resources when shutting down."""
+        
         self.running = False
         self.monitoring_active = False
         self.destroy()
