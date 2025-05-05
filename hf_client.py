@@ -25,7 +25,7 @@ if host == "localhost":
     host = "127.0.0.1"
 client_config["client_connect_host"] = host
 
-# Read parameters
+
 RPC_TIMEOUT = client_config.get("rpc_timeout", 10)
 FALLBACK_TIMEOUT = client_config.get("fallback_timeout", 1)
 OVERALL_LEADER_LOOKUP_TIMEOUT = client_config.get("overall_leader_lookup_timeout", 5)
@@ -50,14 +50,14 @@ class HeartFailureMonitoringClient:
             print(f"Error loading model or scaler: {e}")
             raise
             
-        # Initial connection to the primary address from the config
+       
         self.leader_address = f"{client_config['client_connect_host']}:{client_config['client_connect_port']}"
         self.connect_to_leader(self.leader_address)
         
-        # Queue for risk reports that need to be sent (for retry logic)
+       
         self.report_queue = []
         
-        # Start background thread for leader heartbeat check
+        # Start background thread 
         self.running = True
         threading.Thread(target=self.client_heartbeat_check, daemon=True).start()
         
@@ -98,7 +98,7 @@ class HeartFailureMonitoringClient:
                         return
             except Exception as e:
                 print("Exception during fallback leader lookup:", e)
-        print("Leader lookup failed on all fallback addresses; keeping current connection.")
+        print("Leader lookup failed.")
         time.sleep(RETRY_DELAY)
     
     def client_heartbeat_check(self):
@@ -149,13 +149,12 @@ class HeartFailureMonitoringClient:
         # Normal ejection fraction: 55-70%
         ejection_fraction = random.uniform(20, 65)
         
-        # Day count (time since monitoring began)
+        # Day count 
         day = int(time.time() / 86400) % 365
         
         return [age, serum_sodium, serum_creatinine, ejection_fraction, day]
     
     def run_model_inference(self, vitals):
-        # Scale the input values using the pre-trained scaler
         try:
             scaled_vitals = self.scaler.transform([vitals])
             # Get prediction from model (probability of heart failure)
@@ -175,14 +174,14 @@ class HeartFailureMonitoringClient:
     
     def handle_risk_report(self, vitals, probability, tier):
         if tier == "GREEN":
-            # Store locally only, no network traffic
+            # It will only be stored locally here
             print(f"GREEN risk report: p={probability:.2f}. Storing locally only.")
             return
         
-        # For AMBER and RED, send to server
+        # For AMBER and RED it will be sent to server for alerts
         timestamp = int(time.time())
         
-        # Prepare the risk report
+        # Prepare a report
         report = {
             "patient_id": self.patient_id,
             "timestamp": timestamp,
@@ -191,7 +190,7 @@ class HeartFailureMonitoringClient:
             "tier": tier
         }
         
-        # Add visual/audio alerts for high risk
+        # Addition of alerts
         if tier == "AMBER":
             print(f"\nALERT: AMBER risk detected (p={probability:.2f})")
             print("Notification: Please hydrate, re-measure vitals.\n")
@@ -203,7 +202,7 @@ class HeartFailureMonitoringClient:
         self.send_risk_report(report)
     
     def send_risk_report(self, report):
-        # Convert the report to a RiskReportRequest
+        # Convertig the report to a rewuest
         request = chat_pb2.RiskReportRequest(
             patient_id=report["patient_id"],
             timestamp=report["timestamp"],
@@ -213,7 +212,7 @@ class HeartFailureMonitoringClient:
         )
         
         try:
-            # Call the SendRiskReport RPC with retry
+            
             response = self.call_rpc_with_retry(self.stub.SendRiskReport, request)
             if response.success:
                 print(f"Risk report sent successfully. Alert sent: {response.alert_sent}")
@@ -223,7 +222,6 @@ class HeartFailureMonitoringClient:
                 self.report_queue.append(report)
         except Exception as e:
             print(f"Error sending risk report: {e}")
-            # Add to queue for retry
             self.report_queue.append(report)
     
     def retry_queued_reports(self):
@@ -243,25 +241,23 @@ class HeartFailureMonitoringClient:
     
     def monitoring_loop(self):
         while self.running:
-            # Simulate vitals data collection
+            # Simulate vitals 
             vitals = self.simulate_vitals()
             print(f"\nCaptured vitals: Age={vitals[0]:.1f}, Na={vitals[1]:.1f}, Creat={vitals[2]:.2f}, EF={vitals[3]:.1f}%, Day={vitals[4]}")
             
-            # Run model inference
+            # Run inference
             probability = self.run_model_inference(vitals)
             print(f"Predicted probability: {probability:.4f}")
             
-            # Classify risk
+            # Classify risk and work on report
             tier = self.classify_risk(probability)
-            
-            # Handle the risk report
             self.handle_risk_report(vitals, probability, tier)
             
-            # Retry any queued reports
+            # Retrying reports
             if self.report_queue:
                 self.retry_queued_reports()
             
-            # Wait for the next monitoring interval
+            # Waiting for next interval
             time.sleep(MONITORING_INTERVAL)
     
     def cleanup(self):
