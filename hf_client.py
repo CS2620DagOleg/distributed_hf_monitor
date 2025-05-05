@@ -31,7 +31,7 @@ FALLBACK_TIMEOUT = client_config.get("fallback_timeout", 1)
 OVERALL_LEADER_LOOKUP_TIMEOUT = client_config.get("overall_leader_lookup_timeout", 5)
 RETRY_DELAY = client_config.get("retry_delay", 1)
 CLIENT_HEARTBEAT_INTERVAL = client_config.get("client_heartbeat_interval", 5)
-MONITORING_INTERVAL = client_config.get("monitoring_interval", 30)  # seconds between readings
+MONITORING_INTERVAL = client_config.get("monitoring_interval", 30)  
 
 # Risk thresholds
 GREEN_THRESHOLD = 0.30
@@ -65,14 +65,14 @@ class HeartFailureMonitoringClient:
         threading.Thread(target=self.monitoring_loop, daemon=True).start()
     
     def connect_to_leader(self, address):
-        """Connect to the leader server at the given address."""
+        
         self.leader_address = address
         self.channel = grpc.insecure_channel(address)
         self.stub = chat_pb2_grpc.ChatServiceStub(self.channel)
         print(f"Connected to leader at {address}")
     
     def update_leader(self):
-        """Update the leader address by querying fallback addresses."""
+        
         fallback = client_config.get("replica_addresses", [])
         def query_addr(addr):
             try:
@@ -102,7 +102,7 @@ class HeartFailureMonitoringClient:
         time.sleep(RETRY_DELAY)
     
     def client_heartbeat_check(self):
-        """Periodically check if the leader is still available."""
+        
         while self.running:
             try:
                 resp = self.stub.GetLeaderInfo(chat_pb2.GetLeaderInfoRequest(), timeout=RPC_TIMEOUT)
@@ -120,7 +120,7 @@ class HeartFailureMonitoringClient:
             time.sleep(CLIENT_HEARTBEAT_INTERVAL)
     
     def call_rpc_with_retry(self, func, request, retries=3):
-        """Call an RPC with retry logic if the leader becomes unavailable."""
+       
         for i in range(retries):
             try:
                 return func(request, timeout=RPC_TIMEOUT)
@@ -134,23 +134,19 @@ class HeartFailureMonitoringClient:
         raise Exception("RPC failed after retries.")
     
     def simulate_vitals(self):
-        """Simulate vital signs for the patient. In a real system, this would read from sensors."""
-        # Generate plausible values for a heart failure patient
+        
         # [age, serum_sodium, serum_creatinine, ejection_fraction, day]
         
         # Fixed patient age
         age = random.uniform(50, 85)
         
         # Normal range for serum sodium: 135-145 mEq/L
-        # Heart failure patients might have lower values
         serum_sodium = random.uniform(125, 145)
         
         # Normal range for serum creatinine: 0.6-1.2 mg/dL
-        # Heart failure patients might have higher values
         serum_creatinine = random.uniform(0.8, 2.5)
         
         # Normal ejection fraction: 55-70%
-        # Heart failure patients typically have <40%
         ejection_fraction = random.uniform(20, 65)
         
         # Day count (time since monitoring began)
@@ -159,7 +155,6 @@ class HeartFailureMonitoringClient:
         return [age, serum_sodium, serum_creatinine, ejection_fraction, day]
     
     def run_model_inference(self, vitals):
-        """Run the heart failure prediction model on the given vitals."""
         # Scale the input values using the pre-trained scaler
         try:
             scaled_vitals = self.scaler.transform([vitals])
@@ -171,7 +166,6 @@ class HeartFailureMonitoringClient:
             return 0.5  # Return medium risk if inference fails
     
     def classify_risk(self, probability):
-        """Classify the risk based on the predicted probability."""
         if probability < GREEN_THRESHOLD:
             return "GREEN"
         elif probability < AMBER_THRESHOLD:
@@ -180,7 +174,6 @@ class HeartFailureMonitoringClient:
             return "RED"
     
     def handle_risk_report(self, vitals, probability, tier):
-        """Handle a risk report based on its tier."""
         if tier == "GREEN":
             # Store locally only, no network traffic
             print(f"GREEN risk report: p={probability:.2f}. Storing locally only.")
@@ -210,7 +203,6 @@ class HeartFailureMonitoringClient:
         self.send_risk_report(report)
     
     def send_risk_report(self, report):
-        """Send a risk report to the leader server."""
         # Convert the report to a RiskReportRequest
         request = chat_pb2.RiskReportRequest(
             patient_id=report["patient_id"],
@@ -235,7 +227,6 @@ class HeartFailureMonitoringClient:
             self.report_queue.append(report)
     
     def retry_queued_reports(self):
-        """Retry sending any queued risk reports."""
         if not self.report_queue:
             return
         
@@ -251,7 +242,6 @@ class HeartFailureMonitoringClient:
         self.report_queue = remaining_queue
     
     def monitoring_loop(self):
-        """Main monitoring loop that periodically checks vitals and sends reports."""
         while self.running:
             # Simulate vitals data collection
             vitals = self.simulate_vitals()
@@ -275,7 +265,6 @@ class HeartFailureMonitoringClient:
             time.sleep(MONITORING_INTERVAL)
     
     def cleanup(self):
-        """Clean up resources when shutting down."""
         self.running = False
 
 
