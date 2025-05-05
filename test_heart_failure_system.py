@@ -147,7 +147,6 @@ class TestHeartFailureSystem(unittest.TestCase):
         self.server_processes = []
     
     def start_test_servers(self, count=3):
-        """Start multiple test servers"""
         self.server_processes = []
         
         # Start leader
@@ -164,12 +163,10 @@ class TestHeartFailureSystem(unittest.TestCase):
         time.sleep(3)
     
     def get_stub(self, address="127.0.0.1:50061"):
-        """Get a gRPC stub for the specified server"""
         channel = grpc.insecure_channel(address)
         return chat_pb2_grpc.ChatServiceStub(channel)
     
     def test_server_startup(self):
-        """Test basic server startup and shutdown"""
         print("\nTest: Server Startup and Shutdown")
         self.start_test_servers(1)
         
@@ -188,7 +185,6 @@ class TestHeartFailureSystem(unittest.TestCase):
         print("  ✓ Server shutdown successful")
     
     def test_multiple_servers(self):
-        """Test multiple servers startup and leader election"""
         print("\nTest: Multiple Servers and Leadership")
         self.start_test_servers(3)
         
@@ -204,7 +200,6 @@ class TestHeartFailureSystem(unittest.TestCase):
                 self.fail(f"Failed to connect to server {i}: {e}")
     
     def test_risk_report_storage(self):
-        """Test risk report storage in the database"""
         print("\nTest: Risk Report Storage")
         self.start_test_servers(1)
         
@@ -265,10 +260,9 @@ class TestHeartFailureSystem(unittest.TestCase):
         self.assertIn("RED", tiers)
         self.assertIn("AMBER", tiers)
         
-        print("  ✓ Reports stored correctly in database")
+        print(" Reports stored correctly in database")
     
     def test_data_replication(self):
-        """Test data replication between leader and followers"""
         print("\nTest: Data Replication")
         self.start_test_servers(3)
         
@@ -284,7 +278,7 @@ class TestHeartFailureSystem(unittest.TestCase):
         
         response = stub.SendRiskReport(request)
         self.assertTrue(response.success)
-        print("  ✓ Report sent to leader successfully")
+        print("Report sent to leader successfully")
         
         # Allow time for replication
         time.sleep(3)
@@ -307,7 +301,6 @@ class TestHeartFailureSystem(unittest.TestCase):
             print(f"  ✓ Report successfully replicated to server {i}")
     
     def test_leader_failover(self):
-        """Test leader failover when the leader crashes"""
         print("\nTest: Leader Failover")
         self.start_test_servers(3)
         
@@ -325,7 +318,7 @@ class TestHeartFailureSystem(unittest.TestCase):
         # Wait for leader election
         time.sleep(5)
         
-        # Check who is the new leader - should be server 2 (lowest ID among remaining)
+        # Check who is the new leader, should be server 2 
         stub = self.get_stub("127.0.0.1:50063")  # Ask another follower
         response = stub.GetLeaderInfo(chat_pb2.GetLeaderInfoRequest())
         self.assertEqual(response.leader_address, "127.0.0.1:50062")
@@ -346,7 +339,6 @@ class TestHeartFailureSystem(unittest.TestCase):
         print("  ✓ Report sent to new leader successfully")
     
     def test_client_reconnection(self):
-        """Test client reconnecting to new leader after failover"""
         print("\nTest: Client Reconnection After Failover")
         self.start_test_servers(3)
         
@@ -386,7 +378,6 @@ class TestHeartFailureSystem(unittest.TestCase):
                 client.cleanup()
     
     def test_model_inference(self):
-        """Test model inference with different inputs"""
         print("\nTest: Model Inference")
         
         # Load the model and scaler
@@ -438,10 +429,9 @@ class TestHeartFailureSystem(unittest.TestCase):
             # Just ensure the inference runs without errors
             self.assertIn(tier, ["GREEN", "AMBER", "RED"])
         
-        print("  ✓ Model inference works correctly")
+        print("Model inference works correctly")
     
     def test_error_handling(self):
-        """Test error handling for various scenarios"""
         print("\nTest: Error Handling")
         self.start_test_servers(1)
         
@@ -470,7 +460,7 @@ class TestHeartFailureSystem(unittest.TestCase):
         
         response = stub.SendRiskReport(request)
         self.assertFalse(response.success)
-        print("  ✓ Properly rejected wrong input length")
+        print("Properly rejected wrong input length")
         
         # Test case 3: Request with bad values (should handle typecasting)
         request = chat_pb2.RiskReportRequest(
@@ -489,7 +479,6 @@ class TestHeartFailureSystem(unittest.TestCase):
             print(f"  ⚠ Request with bad values raises exception: {e}")
     
     def test_load_testing(self):
-        """Test system with multiple concurrent requests"""
         print("\nTest: Load Testing")
         self.start_test_servers(3)
         
@@ -570,7 +559,6 @@ class TestHeartFailureSystem(unittest.TestCase):
             print(f"  ✓ Server {i} has {count} reports stored")
     
     def test_dynamic_membership(self):
-        """Test adding a new server to the cluster dynamically"""
         print("\nTest: Dynamic Membership")
         self.start_test_servers(2)
         
